@@ -17,11 +17,11 @@ cursos_rasgos = pd.read_csv("https://raw.githubusercontent.com/EIEM-TEC/CLIE/ref
 
 nomArea = st.selectbox(
     'Area',
-    areas["nombre"])
+    areas[areas["nombre"] != "Total"]["nombre"])
 
 codArea = areas[areas["nombre"]==nomArea]["codArea"].item()
 cursos = cursos[(cursos["area"]==codArea) & (cursos["semestre"]<=10)]
-saberes = saberes[saberes["codArea"]==codArea]
+saberes = saberes[saberes["codArea"]==codArea].copy()
 
 
 nomCurso = st.selectbox(
@@ -34,36 +34,58 @@ idCurso = cursos[cursos["nombre"]==nomCurso]["id"].item()
 
 codSaber = cursos_rasgos[cursos_rasgos["id"]==idCurso]["codSaber"].str.split(';', expand=False).item()
 
-"Saberes del curso:"
+rasgos["codSaber"] = rasgos["codSaber"].str.split(';', expand=False) #convertir los valores separados por ; en una lista por fila
+
+rasgos = rasgos.explode("codSaber") #expadir la lista
+
+codRasgos = rasgos[rasgos["codSaber"].isin(codSaber)]["rasgo"].unique()
+
+st.markdown("## Saberes del curso:")
 
 for index in range(len(codSaber)):
-    st.text(saberes[saberes["codSaber"]==codSaber[index]]["nombre"])
-    st.text(saberes[saberes["codSaber"]==codSaber[index]]["nombre"].item())
+    saber = saberes[saberes["codSaber"]==codSaber[index]]["nombre"].item()
+    st.markdown(f"* {saber}")
+
+st.markdown("## Rasgos del curso:")
+
+for index in range(len(codRasgos)):
+    rasgo = codRasgos[index]
+    st.markdown(f"* {rasgo}")
 
 
-if "openai_model" not in st.session_state:
-    st.session_state["openai_model"] = "gpt-4o"
+assistant = client.beta.assistants.create(
+    name="Asistente para creación de cursos",
+    instructions="Eres un experto en diseño instruccional y de curriculo. Responde siempre en español",
+    model="gpt-4o",
+    tools=[{"type": "file_search"}],
+)
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
 
-if prompt := st.chat_input("What is up?"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
 
-    with st.chat_message("assistant"):
-        stream = client.chat.completions.create(
-            model=st.session_state["openai_model"],
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-        )
-        response = st.write_stream(stream)
-    st.session_state.messages.append({"role": "assistant", "content": response})
+# if "openai_model" not in st.session_state:
+#     st.session_state["openai_model"] = "gpt-4o"
+
+# if "messages" not in st.session_state:
+#     st.session_state.messages = []
+
+# for message in st.session_state.messages:
+#     with st.chat_message(message["role"]):
+#         st.markdown(message["content"])
+
+# if prompt := st.chat_input("What is up?"):
+#     st.session_state.messages.append({"role": "user", "content": prompt})
+#     with st.chat_message("user"):
+#         st.markdown(prompt)
+
+#     with st.chat_message("assistant"):
+#         stream = client.chat.completions.create(
+#             model=st.session_state["openai_model"],
+#             messages=[
+#                 {"role": m["role"], "content": m["content"]}
+#                 for m in st.session_state.messages
+#             ],
+#             stream=True,
+#         )
+#         response = st.write_stream(stream)
+#     st.session_state.messages.append({"role": "assistant", "content": response})
